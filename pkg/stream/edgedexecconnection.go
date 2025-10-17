@@ -8,18 +8,21 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"sync"
 
 	"k8s.io/apimachinery/pkg/util/httpstream/spdy"
 	"k8s.io/klog/v2"
 )
 
 type EdgedExecConnection struct {
-	ReadChan chan *Message `json:"-"`
-	Stop     chan struct{} `json:"-"`
-	MessID   uint64
-	URL      url.URL     `json:"url"`
-	Header   http.Header `json:"header"`
-	Method   string      `json:"method"`
+	ReadChan  chan *Message `json:"-"`
+	Stop      chan struct{} `json:"-"`
+	MessID    uint64
+	URL       url.URL     `json:"url"`
+	Header    http.Header `json:"header"`
+	Method    string      `json:"method"`
+	closed    bool        // connection whether closed
+	closeLock sync.Mutex
 }
 
 func (e *EdgedExecConnection) CreateConnectMessage() (*Message, error) {
@@ -39,10 +42,17 @@ func (e *EdgedExecConnection) String() string {
 }
 
 func (e *EdgedExecConnection) CacheTunnelMessage(msg *Message) {
-	e.ReadChan <- msg
+	e.closeLock.Lock()
+	defer e.closeLock.Unlock()
+	if !e.closed {
+		e.ReadChan <- msg
+	}
 }
 
 func (e *EdgedExecConnection) CloseReadChannel() {
+	e.closeLock.Lock()
+	defer e.closeLock.Unlock()
+	e.closed = true
 	close(e.ReadChan)
 }
 

@@ -22,16 +22,19 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"sync"
 
 	"k8s.io/klog/v2"
 )
 
 type EdgedMetricsConnection struct {
-	ReadChan chan *Message `json:"-"`
-	Stop     chan struct{} `json:"-"`
-	MessID   uint64        // message id
-	URL      url.URL       `json:"url"`
-	Header   http.Header   `json:"header"`
+	ReadChan  chan *Message `json:"-"`
+	Stop      chan struct{} `json:"-"`
+	MessID    uint64        // message id
+	URL       url.URL       `json:"url"`
+	Header    http.Header   `json:"header"`
+	closed    bool          // connection whether closed
+	closeLock sync.Mutex
 }
 
 func (ms *EdgedMetricsConnection) GetMessageID() uint64 {
@@ -39,10 +42,17 @@ func (ms *EdgedMetricsConnection) GetMessageID() uint64 {
 }
 
 func (ms *EdgedMetricsConnection) CacheTunnelMessage(msg *Message) {
-	ms.ReadChan <- msg
+	ms.closeLock.Lock()
+	defer ms.closeLock.Unlock()
+	if !ms.closed {
+		ms.ReadChan <- msg
+	}
 }
 
 func (ms *EdgedMetricsConnection) CloseReadChannel() {
+	ms.closeLock.Lock()
+	defer ms.closeLock.Unlock()
+	ms.closed = true
 	close(ms.ReadChan)
 }
 
