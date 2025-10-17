@@ -34,7 +34,7 @@ type EdgedMetricsConnection struct {
 	URL       url.URL       `json:"url"`
 	Header    http.Header   `json:"header"`
 	closed    bool          // connection whether closed
-	closeLock sync.Mutex
+	closeLock sync.RWMutex
 }
 
 func (ms *EdgedMetricsConnection) GetMessageID() uint64 {
@@ -42,8 +42,8 @@ func (ms *EdgedMetricsConnection) GetMessageID() uint64 {
 }
 
 func (ms *EdgedMetricsConnection) CacheTunnelMessage(msg *Message) {
-	ms.closeLock.Lock()
-	defer ms.closeLock.Unlock()
+	ms.closeLock.RLock()
+	defer ms.closeLock.RUnlock()
 	if !ms.closed {
 		ms.ReadChan <- msg
 	}

@@ -22,7 +22,7 @@ type EdgedExecConnection struct {
 	Header    http.Header `json:"header"`
 	Method    string      `json:"method"`
 	closed    bool        // connection whether closed
-	closeLock sync.Mutex
+	closeLock sync.RWMutex
 }
 
 func (e *EdgedExecConnection) CreateConnectMessage() (*Message, error) {
@@ -42,8 +42,8 @@ func (e *EdgedExecConnection) String() string {
 }
 
 func (e *EdgedExecConnection) CacheTunnelMessage(msg *Message) {
-	e.closeLock.Lock()
-	defer e.closeLock.Unlock()
+	e.closeLock.RLock()
+	defer e.closeLock.RUnlock()
 	if !e.closed {
 		e.ReadChan <- msg
 	}

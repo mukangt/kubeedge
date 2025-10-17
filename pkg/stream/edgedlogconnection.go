@@ -36,7 +36,7 @@ type EdgedLogsConnection struct {
 	URL       url.URL       `json:"url"`
 	Header    http.Header   `json:"header"`
 	closed    bool          // connection whether closed
-	closeLock sync.Mutex
+	closeLock sync.RWMutex
 }
 
 func (l *EdgedLogsConnection) GetMessageID() uint64 {
@@ -44,8 +44,8 @@ func (l *EdgedLogsConnection) GetMessageID() uint64 {
 }
 
 func (l *EdgedLogsConnection) CacheTunnelMessage(msg *Message) {
-	l.closeLock.Lock()
-	defer l.closeLock.Unlock()
+	l.closeLock.RLock()
+	defer l.closeLock.RUnlock()
 	if !l.closed {
 		l.ReadChan <- msg
 	}
